@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Shotwise · Studio review{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+<script>window.__swErr = []; window.swFallback = window.swFallback || null;</script>
+<script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="/" aria-label="Shotwise home">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="2" y="12.5" width="28" height="17.5" rx="3" fill="#f3ede2"/>
+        <path d="M2.6 10.6 28.6 3.6l1.4 5.2L4 15.8z" fill="#f0a63a"/>
+        <path d="M9.2 8.9l2.5 4.6M15.6 7.2l2.5 4.6M22 5.5l2.5 4.6" stroke="#141210" stroke-width="1.9" stroke-linecap="round"/>
+        <circle cx="23.5" cy="22" r="3.4" fill="#141210"/><circle cx="23.5" cy="22" r="1.4" fill="#f0a63a"/>
+        <path d="M6 20h9M6 24h6" stroke="#141210" stroke-width="1.6" stroke-linecap="round" opacity=".55"/>
+      </svg>
+      Shotwise <span class="brand-sub">Studio review</span>
+    </a>
+    <div class="scroller nav-scroller">
+      <nav class="topnav" aria-label="Primary">
+        <a href="/" class="{{ 'active' if request.url.path == '/' else '' }}" title="Dailies — every episode on the slate">Dailies<span class="alt">episodes</span></a>
+        <a href="/episodes/new" class="{{ 'active' if request.url.path == '/episodes/new' else '' }}" title="Start a new episode from an idea or a script">New episode</a>
+        <a href="/settings" class="{{ 'active' if request.url.path in ('/settings', '/usage', '/providers') else '' }}" title="Providers, API keys, usage and quotas">Settings<span class="alt">providers · usage</span></a>
+        {% if episodes %}<span class="sep" aria-hidden="true"></span>{% endif %}
+        {% for e in episodes %}
+          <a href="/ep/{{ e }}" class="ep-link {{ 'active' if request.url.path.startswith('/ep/' ~ e) else '' }}" title="Episode {{ e }}">{{ e }}</a>
+        {% endfor %}
+      </nav>
+    </div>
+    <div class="topbar-right">
+      <span class="store-tag" title="State store"><span class="dot"></span>{{ backend }} · local</span>
+    </div>
+  </div>
+</header>
+{% block subnav %}{% endblock %}
+<main>
+  {% if msg %}<div class="flash" id="flash" role="status"><span class="dot"></span>{{ msg }}</div>{% endif %}
+  {% block body %}{% endblock %}
+</main>
+<footer class="foot">
+  <span>Shotwise · local review desk</span>
+  <span class="mono">{{ backend }} store · {{ episodes|length }} episode{{ '' if episodes|length == 1 else 's' }} · stages: {{ stages|join(' → ') }}</span>
+</footer>
+</body>
+</html>

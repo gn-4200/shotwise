@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+secrets/
+state/
+queue/
+episodes/*/shots/
+episodes/*/out/
+episodes/*/audio/
+*.egg-info/

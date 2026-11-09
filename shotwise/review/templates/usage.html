@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Budget · Usage &amp; quotas · Shotwise{% endblock %}
+{% block body %}
+{% set t_calls = today|sum(attribute='calls') %}{% set t_ok = today|sum(attribute='ok') %}{% set t_failed = today|sum(attribute='failed') %}{% set t_cost = today|sum(attribute='cost_usd') %}
+{% set a_calls = rows|sum(attribute='calls') %}{% set a_ok = rows|sum(attribute='ok') %}{% set a_failed = rows|sum(attribute='failed') %}{% set a_cost = rows|sum(attribute='cost_usd') %}{% set a_units = rows|sum(attribute='units') %}
+{% set hot = quotas|selectattr('pct', '>', 80)|list %}
+{% set rate = ((100 * a_ok / a_calls)|round|int) if a_calls else 0 %}
+
+<header class="page-head">
+  <div>
+    <span class="eyebrow amber">Budget · usage</span>
+    <h1>Usage &amp; quotas</h1>
+    <p class="lede">What each provider did, how reliable it was, what it cost, and how much of today's free tier is left before the chain moves on to the next provider.</p>
+  </div>
+  <div class="actionbar">
+    <a class="btn" href="/providers">{{ ui.icon('users') }} Crew <span class="dim">· providers</span></a>
+  </div>
+</header>
+
+<section class="kpis five" aria-label="Key numbers">
+  <div class="kpi"><div class="k">Calls today</div><div class="v">{{ t_calls }}</div><div class="h"><span class="ok-text">{{ t_ok }} ok</span> · <span class="{{ 'bad-text' if t_failed else '' }}">{{ t_failed }} failed</span></div></div>
+  <div class="kpi {{ ('ok' if rate >= 95 else ('warn' if rate >= 50 else 'danger')) if a_calls else '' }}"><div class="k">Success rate</div><div class="v">{{ rate }}<small>%</small></div><div class="h">all time · {{ a_calls }} call{{ '' if a_calls == 1 else 's' }}</div></div>
+  <div class="kpi"><div class="k">Spend today</div><div class="v"><small class="cur">$</small>{{ '%.2f'|format(t_cost) }}</div><div class="h">paid calls only</div></div>
+  <div class="kpi accent"><div class="k">Spend all time</div><div class="v"><small class="cur">$</small>{{ '%.2f'|format(a_cost) }}</div><div class="h">{{ '%.0f'|format(a_units) }} units consumed</div></div>
+  <div class="kpi {{ 'warn' if hot else '' }}"><div class="k">Quotas near limit</div><div class="v">{{ hot|length }}<small>/ {{ quotas|length }}</small></div><div class="h">above 80% of the daily cap</div></div>
+</section>
+
+<section class="card">
+  <div class="card-head">
+    <div><h2>Daily quotas</h2><div class="blurb">Free tiers reset each day. Past 80% the bar turns amber; at 100% the chain falls through to the next provider.</div></div>
+    <span class="legend"><span><i style="background:var(--ok)"></i>headroom</span><span><i style="background:var(--amber)"></i>near limit</span><span><i style="background:var(--bad)"></i>exhausted</span></span>
+  </div>
+  {% if quotas %}
+  <div class="quota-rows">
+    {% for q in quotas %}
+    {% set tone = 'danger' if q.pct >= 100 else ('warn' if q.pct > 80 else 'ok') %}
+    <div class="quota-row">
+      <span class="name mono">{{ q.provider }}</span>
+      {# a non-zero usage always shows a sliver, and '<1%' instead of a rounded 0 #}
+      <div class="bar"><div class="fill {{ tone }}" style="width: {{ 'max(2px, ' ~ q.pct ~ '%)' if q.used else '0' }}"></div></div>
+      <span class="nums mono"><b>{{ q.used }}</b> / {{ q.limit }} <span class="dim">· {{ q.limit - q.used if q.limit >= q.used else 0 }} left</span></span>
+      <span class="state">{% if tone == 'danger' %}<span class="tag red">{{ ui.icon('alert') }} exhausted</span>{% elif tone == 'warn' %}<span class="tag amber">{{ ui.icon('alert') }} near limit</span>{% else %}<span class="tag green">{{ ui.icon('check') }} headroom</span>{% endif %} <span class="pct mono">{{ '<1%' if q.used and q.pct < 1 else (q.pct ~ '%') }}</span></span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card-body"><div class="empty sm"><div class="ico">{{ ui.icon('bolt') }}</div><h3>No metered providers</h3><p>Add <code>limits: { per_day: N }</code> to a provider in <code>config/providers.yaml</code> to track it here.</p></div></div>
+  {% endif %}
+</section>
+
+<section class="section">
+  <div class="section-head"><h2>Provider activity</h2><span class="hint">Calls, failures, units and list-price cost per provider.</span></div>
+  <div class="grid two">
+  {% for title, data, hint in [('Today', today, 'Since midnight, local time.'), ('All time', rows, 'Every call recorded in the store.')] %}
+    <section class="card flush">
+      <div class="card-head"><h3>{{ title }}</h3><span class="hint">{{ hint }}</span></div>
+      {% if not data %}
+        <div class="card-body"><div class="empty sm"><div class="ico">{{ ui.icon('inbox') }}</div><h3>No calls recorded{{ ' today' if title == 'Today' else '' }}</h3><p>Provider calls show up here as soon as a stage runs.</p></div></div>
+      {% else %}
+      {% set t = namespace(calls=0, ok=0, failed=0, units=0.0, cost=0.0) %}
+      <div class="scroller table-scroller">
+      <div class="table-wrap sticky-first flush">
+        <table class="table">
+          <thead><tr><th>Provider</th><th class="num">Calls</th><th class="num">OK</th><th class="num">Failed</th><th class="num hide-m">Units</th><th class="num">USD</th></tr></thead>
+          <tbody>
+          {% for r in data %}
+            {% set t.calls = t.calls + r.calls %}{% set t.ok = t.ok + r.ok %}{% set t.failed = t.failed + r.failed %}{% set t.units = t.units + r.units %}{% set t.cost = t.cost + r.cost_usd %}
+            <tr>
+              <td class="mono">{{ r.provider }}<span class="sub m-only">{{ '%.0f'|format(r.units) }} units</span></td>
+              <td class="num">{{ r.calls }}</td>
+              <td class="num ok-text">{{ r.ok }}</td>
+              <td class="num {{ 'bad-text' if r.failed else 'dim' }}">{{ r.failed }}</td>
+              <td class="num hide-m">{{ '%.0f'|format(r.units) }}</td>
+              <td class="num">{{ '%.2f'|format(r.cost_usd) }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+          <tfoot><tr><td>Total</td><td class="num">{{ t.calls }}</td><td class="num">{{ t.ok }}</td><td class="num">{{ t.failed }}</td><td class="num hide-m">{{ '%.0f'|format(t.units) }}</td><td class="num">{{ '%.2f'|format(t.cost) }}</td></tr></tfoot>
+        </table>
+      </div>
+      </div>
+      {% endif %}
+    </section>
+  {% endfor %}
+  </div>
+</section>
+{% endblock %}

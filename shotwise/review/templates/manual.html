@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Manual desk · {{ ep }} · Shotwise{% endblock %}
+
+{% block subnav %}
+<nav class="subnav" aria-label="Episode">
+  <div class="subnav-in">
+    <span class="subnav-ep"><span class="eyebrow">Episode</span>{{ ep }}</span>
+    <div class="scroller subnav-scroller">
+      <div class="subnav-links">
+        <a href="/ep/{{ ep }}">Shot list</a>
+        <a href="/ep/{{ ep }}?status=needs_review" title="Takes are in; pick one and lock it"><span class="lng">Needs </span>Review</a>
+        <a class="active" href="/ep/{{ ep }}/manual" title="Requests the providers could not fill">Manual<span class="lng"> desk</span> {% if items %}<span class="count">{{ items|length }}</span>{% endif %}</a>
+        <a href="/ep/{{ ep }}?status=blocked" title="Every provider failed">Blocked</a>
+        <span class="spacer"></span>
+        {% for k, v in jobs.items() if k.startswith(ep ~ ':') %}
+          <span class="tag {{ 'blue' if v == 'running' else ('red' if v.startswith('failed') else 'gray') }}">{{ k.split(':')[1] }}: {{ v }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</nav>
+{% endblock %}
+
+{# Which stage a request belongs to, read from its target path (…/keyframes/cand_1.png, …/audio/music/<cue>/cue.wav). #}
+{% macro stage_of(it) -%}
+{%- set parts = it.target.replace('\\', '/').split('/') -%}
+{%- set ns = namespace(st='other') -%}
+{%- for seg in parts if seg in ['keyframes', 'video', 'voice', 'lipsync', 'music', 'breakdown'] %}{% set ns.st = seg %}{% endfor -%}
+{{ ns.st }}
+{%- endmacro %}
+
+{# One request: prompt, parsed reference files, delivery form. Field names are the upload contract. #}
+{% macro request_card(it, idx, total, framed=false) -%}
+<div class="req {{ 'card' if framed else '' }}">
+  <div class="req-main">
+    <div class="row between gap wrap">
+      <div><span class="eyebrow">Request {{ idx }} of {{ total }}</span><h3>{{ it.title }}</h3></div>
+      <span class="tag amber">{{ ui.icon('inbox') }} {{ it.short }}</span>
+    </div>
+    <p class="target">{{ it.target }}</p>
+    {% if it.prompt %}
+    <div class="prompt-head"><span class="eyebrow">Prompt</span><button class="btn sm" data-copy="p{{ idx }}">{{ ui.icon('copy') }} Copy prompt</button></div>
+    <pre id="p{{ idx }}">{{ it.prompt }}</pre>
+    {% endif %}
+    {% if it.refs and it.refs != '- none' %}
+    <div class="prompt-head"><span class="eyebrow">Reference files</span></div>
+    <ul class="refs">
+      {% for line in it.refs.splitlines() if line.strip() %}
+        {% set body = line.strip().lstrip('-*').strip() %}
+        {% set bits = body.split('`') %}
+        <li>
+          {% if bits|length >= 2 %}<span class="k">{{ bits[0].rstrip(': ') }}</span><code>{{ bits[1] }}</code>
+          {% elif ':' in body %}<span class="k">{{ body.split(':', 1)[0] }}</span><code>{{ body.split(':', 1)[1].strip() }}</code>
+          {% else %}<code>{{ body }}</code>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  <div class="req-side">
+    <span class="eyebrow">Deliver the result</span>
+    <div class="step"><span class="n">1</span><span>Generate with any tool using the prompt{% if it.refs and it.refs != '- none' %} and the reference files{% endif %}.</span></div>
+    <div class="step"><span class="n">2</span><span>Save it below as <b class="mono" style="color:var(--ink)">{{ it.short }}</b>. The request clears itself.</span></div>
+    <form method="post" action="/ep/{{ ep }}/manual/upload" enctype="multipart/form-data" class="stack">
+      <input type="hidden" name="target" value="{{ it.target }}">
+      {% if it.short.endswith('.json') or it.short.endswith('.md') %}
+        <textarea name="text" rows="7" placeholder="Paste the model's answer here" aria-label="Paste {{ it.short }} contents"></textarea>
+      {% else %}
+        <div class="drop"><input type="file" name="file" aria-label="Choose {{ it.short }}"></div>
+      {% endif %}
+      <button class="btn primary full">{{ ui.icon('upload') }} Save as {{ it.short }}</button>
+    </form>
+  </div>
+</div>
+{%- endmacro %}
+
+{% block body %}
+<header class="page-head">
+  <div>
+    <div class="crumbs"><a href="/">Dailies</a><span class="sep">/</span><a href="/ep/{{ ep }}">{{ ep }}</a><span class="sep">/</span><span>Manual desk</span></div>
+    <h1>Manual desk <span class="dim h1-sub">· requests waiting on you</span></h1>
+    <p class="lede">{{ items|length }} request{{ '' if items|length == 1 else 's' }} the providers could not fill. Copy the prompt, generate it anywhere, drop the file back here, then resume the pipeline.</p>
+  </div>
+  <div class="actionbar">
+    <form method="post" action="/ep/{{ ep }}/resume"><button class="btn primary" {% if jobs.get(ep ~ ':resume') == 'running' %}disabled{% endif %}>{{ ui.icon('play') }} Resume pipeline</button></form>
+  </div>
+</header>
+
+{% if not items %}
+<section class="empty">
+  <div class="ico">{{ ui.icon('check') }}</div>
+  <h2>Desk is clear</h2>
+  <p>Every job has a result or is running on a provider. Nothing is waiting on a human.</p>
+</section>
+{% endif %}
+
+{# Group by stage, pipeline order; the first request of each group is open, the rest fold until needed. #}
+{% set groups = {} %}
+{% for it in items %}{% set st = stage_of(it)|trim %}{% set _ = groups.setdefault(st, []).append(it) %}{% endfor %}
+{% set n = namespace(i=0) %}
+{% for st in ['breakdown', 'keyframes', 'video', 'voice', 'lipsync', 'music', 'other'] if groups.get(st) %}
+<section class="section req-group" id="group-{{ st }}">
+  <div class="section-head">
+    <h2>{{ ui.STAGE_TITLE.get(st, st) }} <span class="tag amber">{{ groups[st]|length }}</span></h2>
+    <span class="hint">{{ groups[st]|length }} request{{ '' if groups[st]|length == 1 else 's' }} · the first is open, the rest fold out.</span>
+  </div>
+  {% for it in groups[st] %}
+    {% set n.i = n.i + 1 %}
+    {% if loop.first %}
+      <article id="req-{{ n.i }}">{{ request_card(it, n.i, items|length, framed=true) }}</article>
+    {% else %}
+      <details class="req-fold" id="req-{{ n.i }}">
+        <summary><span class="t">{{ it.title }}</span><span class="muted small">request {{ n.i }} of {{ items|length }}</span><span class="tag amber">{{ ui.icon('inbox') }} {{ it.short }}</span></summary>
+        {{ request_card(it, n.i, items|length) }}
+      </details>
+    {% endif %}
+  {% endfor %}
+</section>
+{% endfor %}
+{% endblock %}

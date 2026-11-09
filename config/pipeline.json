@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "storage": {
+    "backend": "json",
+    "path": "state/shotwise.json"
+  },
+  "workers": {
+    "transport": "local",
+    "queue_dir": "queue",
+    "remote": "gdrive:shotwise/queue"
+  },
+  "stages": {
+    "script": {
+      "chain": [
+        "gemini_free",
+        "claude",
+        "openai",
+        "manual_text"
+      ],
+      "attempts": 2,
+      "params": {
+        "target_minutes": 4
+      }
+    },
+    "breakdown": {
+      "chain": [
+        "gemini_free",
+        "claude",
+        "openai",
+        "manual_text"
+      ],
+      "attempts": 2,
+      "params": {
+        "target_shot_s": 6
+      }
+    },
+    "keyframes": {
+      "chain": [
+        "comfy_qwen_image",
+        "manual_image"
+      ],
+      "candidates": 2,
+      "gate": true,
+      "qc": {
+        "face_similarity_min": 0.0
+      },
+      "params": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    "video": {
+      "chain": [
+        "comfy_wan22",
+        "comfy_ltx23",
+        "manual_video"
+      ],
+      "attempts": 4,
+      "gate": true,
+      "qc": {
+        "min_duration_s": 4,
+        "max_black_ratio": 0.02,
+        "freeze_max_s": 1.0
+      },
+      "params": {
+        "width": 1280,
+        "height": 720
+      }
+    },
+    "voice": {
+      "chain": [
+        "chatterbox_local",
+        "kokoro_local",
+        "manual_audio"
+      ],
+      "params": {
+        "loudness_lufs": -16
+      }
+    },
+    "lipsync": {
+      "chain": [
+        "comfy_latentsync",
+        "manual_video"
+      ],
+      "params": {
+        "only_shot_types": [
+          "closeup_dialogue"
+        ]
+      }
+    },
+    "music": {
+      "chain": [
+        "comfy_acestep",
+        "manual_music"
+      ],
+      "params": {
+        "seconds_per_cue": 90
+      }
+    },
+    "assemble": {
+      "params": {
+        "width": 1920,
+        "height": 1080,
+        "fps": 24,
+        "crf": 18,
+        "burn_subtitles": true
+      }
+    },
+    "cutdowns": {
+      "params": {
+        "count": 3,
+        "min_s": 60,
+        "max_s": 90
+      }
+    },
+    "publish": {
+      "chain": [
+        "youtube"
+      ],
+      "gate": true,
+      "params": {
+        "privacy": "private",
+        "synthetic_media": true
+      }
+    }
+  }
+}

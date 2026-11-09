@@ -1,0 +1,26 @@
+{
+  "episode": "ep00-pilot",
+  "logline": "When three lantern towers go dark, a mapmaker and the old lantern keeper climb into the dry canal and find a signal that is not a lamp.",
+  "scenes": [
+    {"id": "s01", "title": "The west line goes dark", "location": "Qamar Rooftops", "time_of_day": "dusk", "mood": "uneasy wonder",
+     "shots": [
+      {"id": "s01_01", "duration_s": 6, "shot_type": "establishing", "characters": [], "location": "Qamar Rooftops", "camera": "slow drift right over the rooftops", "action": "Lanterns flicker on one by one across the sandstone roofs as the sun sets.", "lines": [], "needs_video": false},
+      {"id": "s01_02", "duration_s": 5, "shot_type": "wide", "characters": ["Ayla"], "location": "Qamar Rooftops", "camera": "tracking from the side", "action": "Ayla sprints across a rooftop with a map tube bouncing on her back.", "lines": [], "needs_video": true},
+      {"id": "s01_03", "duration_s": 7, "shot_type": "closeup_dialogue", "characters": ["Ayla"], "location": "Qamar Rooftops", "camera": "static, slightly low", "action": "Ayla stops at the ledge, out of breath, pointing west.", "lines": [{"speaker": "Ayla", "text": "Tariq! The west line went dark. Three towers, all at once.", "emotion": "excited"}], "needs_video": true},
+      {"id": "s01_04", "duration_s": 7, "shot_type": "closeup_dialogue", "characters": ["Tariq"], "location": "Qamar Rooftops", "camera": "static", "action": "Tariq holds the green lantern up to the wind, eyes narrowed.", "lines": [{"speaker": "Tariq", "text": "Not dark. Hidden. Someone is drawing the lamps down into the canal.", "emotion": "calm"}], "needs_video": true},
+      {"id": "s01_05", "duration_s": 6, "shot_type": "medium", "characters": ["Ayla", "Tariq"], "location": "Qamar Rooftops", "camera": "slow push-in", "action": "Ayla and Tariq look west at the three dark towers.", "lines": [{"speaker": "Ayla", "text": "Nobody goes into the canal.", "emotion": "afraid"}, {"speaker": "Tariq", "text": "Then we will go and ask the echoes.", "emotion": "warm"}], "needs_video": false}
+     ]},
+    {"id": "s02", "title": "The lantern that never went out", "location": "The Lantern Tower", "time_of_day": "night", "mood": "intimate and old",
+     "shots": [
+      {"id": "s02_01", "duration_s": 6, "shot_type": "insert", "characters": ["Tariq"], "location": "The Lantern Tower", "camera": "macro, static", "action": "Tariq's hands light a second lantern from the green one; the glass hums.", "lines": [], "needs_video": true},
+      {"id": "s02_02", "duration_s": 8, "shot_type": "closeup_dialogue", "characters": ["Tariq"], "location": "The Lantern Tower", "camera": "static", "action": "Tariq watches the flame, face lit green.", "lines": [{"speaker": "Tariq", "text": "My grandfather lit this one the night the river left. It has never gone out.", "emotion": "calm"}], "needs_video": true},
+      {"id": "s02_03", "duration_s": 6, "shot_type": "medium", "characters": ["Ayla"], "location": "The Lantern Tower", "camera": "slow tilt down", "action": "Ayla unrolls her map on the stair; three lanterns on it are crossed out.", "lines": [{"speaker": "Ayla", "text": "And if it does?", "emotion": "neutral"}, {"speaker": "Tariq", "text": "Then the city forgets where it is.", "emotion": "calm"}], "needs_video": false}
+     ]},
+    {"id": "s03", "title": "A signal in the canal", "location": "The Dry Canal", "time_of_day": "night", "mood": "tense discovery",
+     "shots": [
+      {"id": "s03_01", "duration_s": 6, "shot_type": "establishing", "characters": [], "location": "The Dry Canal", "camera": "high angle, slow descent", "action": "Moonlight on puddles in the cracked canal; two small figures climb down.", "lines": [], "needs_video": false},
+      {"id": "s03_02", "duration_s": 5, "shot_type": "insert", "characters": ["Ayla"], "location": "The Dry Canal", "camera": "macro", "action": "Ayla's compass needle spins, then points down the tunnel.", "lines": [{"speaker": "Ayla", "text": "It is pointing at something that is not north.", "emotion": "afraid"}], "needs_video": true},
+      {"id": "s03_03", "duration_s": 7, "shot_type": "wide", "characters": ["Ayla", "Tariq"], "location": "The Dry Canal", "camera": "static, deep focus", "action": "Far down the canal a faint green glow blinks twice as Tariq raises his lantern.", "lines": [{"speaker": "Tariq", "text": "That is not a lamp. That is a signal.", "emotion": "calm"}], "needs_video": true}
+     ]}
+  ]
+}

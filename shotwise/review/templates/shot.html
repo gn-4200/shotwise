@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}{{ s.id if s else 'Shot not found' }} · {{ ep }} · Shotwise{% endblock %}
+{# s is None for a mistyped or stale id: the page renders an empty state instead of failing on s.* #}
+{% set is_cue = s and s.id.startswith('music:') %}
+{% set kf = files.get('keyframes', {}) %}
+{% set kv = s.stages.get('keyframes') if s else none %}
+{% set locked_name = kf.approved.split('/')[-1] if kf.approved else '' %}
+{% set order = ['music'] if is_cue else ['keyframes', 'video', 'lipsync', 'voice'] %}
+{% set shown = [] %}{% for st in order if st in files %}{% set _ = shown.append(st) %}{% endfor %}
+{% set STAGE_BLURB = {'keyframes': 'Pick the frame that nails the composition; it anchors every later stage.',
+                      'video': 'Motion pass generated from the locked keyframe.',
+                      'lipsync': 'Mouth shapes matched to the chosen voice take.',
+                      'voice': 'Dialogue takes, one file per line.',
+                      'music': 'Underscore for this cue, generated after picture lock.'} %}
+
+{% block subnav %}
+{% if s %}
+<div class="shotbar" id="shotbar">
+  <div class="shotbar-in">
+    <a class="back" href="/ep/{{ ep }}" title="Back to the {{ ep }} shot list" aria-label="Back to the {{ ep }} shot list">{{ ui.icon('back') }}<span class="ep">{{ ep }}</span></a>
+    <span class="sb-id">{{ s.id }}</span>
+    {% if is_cue %}<span class="tag violet">{{ ui.icon('waveform') }} music cue</span>
+    {% elif kf.approved %}<span class="tag green" title="Keyframe locked · {{ locked_name }}">{{ ui.icon('check') }} Picture locked</span>
+    {% else %}{{ ui.chip(kv.status if kv else 'pending', 'keyframes' ~ (' — ' ~ kv.note if kv and kv.note else '')) }}{% endif %}
+    <div class="scroller jump-scroller">
+      <nav class="jump" aria-label="Jump to stage">
+        {% for st in shown %}<a href="#stage-{{ st }}">{{ ui.STAGE_TITLE[st] }}</a>{% endfor %}
+        {% if prompts %}<a href="#prompts" class="wide-only">Prompts</a>{% endif %}
+        <a href="#callsheet" class="side-only">Call sheet</a>
+      </nav>
+    </div>
+    <div class="right">
+      <a class="btn ghost sm" href="/ep/{{ ep }}/manual">{{ ui.icon('inbox') }} Manual desk</a>
+      {% if not is_cue %}
+      {# the only place the lane is shown: the current lane styles the button, the label is the action #}
+      <form method="post" action="/ep/{{ ep }}/shot/{{ s.id }}/lane">
+        <input type="hidden" name="lane" value="{{ 'free' if s.lane == 'premium' else 'premium' }}">
+        <button class="btn sm {{ 'gold' if s.lane == 'premium' else '' }}" title="{{ 'On the premium lane: rendered by hand on a paid provider. Click to move back to the free, automated chain.' if s.lane == 'premium' else 'On the free lane: automated provider chain. Click to route this shot to the premium, hand-rendered lane.' }}">{{ ui.icon("star") }} <span><span class="lane-verb">Switch to </span>{{ "free" if s.lane == "premium" else "premium" }}<span class="lane-word"> lane</span></span></button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block body %}
+{% if not s %}
+<header class="page-head compact">
+  <div>
+    <div class="crumbs"><a href="/">Dailies</a><span class="sep">/</span><a href="/ep/{{ ep }}">{{ ep }}</a><span class="sep">/</span><span>shot</span></div>
+    <h1>Shot not found</h1>
+  </div>
+</header>
+<section class="empty">
+  <div class="ico">{{ ui.icon('film') }}</div>
+  <h2>No shot <span class="mono">{{ request.url.path.split('/')[-1] }}</span> in {{ ep }}</h2>
+  <p>The link may be stale or mistyped. Pick the shot from the list instead.</p>
+  <p style="margin-top: var(--s4)"><a class="btn" href="/ep/{{ ep }}">{{ ui.icon('back') }} Back to the {{ ep }} shot list</a></p>
+</section>
+{% else %}
+<header class="page-head compact">
+  <div>
+    <div class="crumbs"><a href="/">Dailies</a><span class="sep">/</span><a href="/ep/{{ ep }}">{{ ep }}</a><span class="sep">/</span><span>{{ 'music cue' if is_cue else 'shot' }}</span></div>
+    <h1 class="mono">{{ s.id }}</h1>
+    <div class="meta">
+      <span>Scene <b>{{ s.scene }}</b></span>
+      <span><b>{{ s.shot_type.replace('_', ' ') }}</b>{% if not s.needs_video and not is_cue %} · animated still{% endif %}</span>
+      <span><b>{{ s.duration_s }}s</b></span>
+      {% if s.characters %}<span>Cast <b>{{ s.characters|join(', ') }}</b></span>{% endif %}
+      {% if s.location %}<span><b>{{ s.location }}</b></span>{% endif %}
+    </div>
+  </div>
+</header>
+
+<div class="shot-layout">
+  <div class="stack" style="gap: var(--s5)">
+    {# ---------- hero: only once picture is locked ---------- #}
+    {% if kf.approved and not is_cue %}
+    <section class="hero" aria-label="Locked keyframe">
+      <div class="frame">
+        <img src="{{ kf.approved }}" alt="{{ s.id }} locked keyframe">
+        <div class="frame-tag">
+          <span class="tag onart ok">{{ ui.icon('check') }} Picture locked</span>
+          {% if s.lane == 'premium' %}<span class="tag onart amber">{{ ui.icon('star') }} premium</span>{% endif %}
+        </div>
+      </div>
+      <div class="hero-cap">
+        <div>
+          <div class="big">{{ s.shot_type.replace('_', ' ')|capitalize }} · {{ s.duration_s }}s</div>
+          <div class="sub">{% if s.camera %}<span>Camera · {{ s.camera }}</span>{% endif %}{% if s.location %}<span>{{ s.location }}</span>{% endif %}{% if s.characters %}<span>{{ s.characters|join(', ') }}</span>{% endif %}</div>
+        </div>
+        <span class="file"><span class="k">Locked file</span><b>{{ locked_name }}</b>{% if kv and kv.note and kv.note != locked_name %}<span class="dim">· from {{ kv.note }}</span>{% endif %}</span>
+      </div>
+    </section>
+    {% endif %}
+
+    {# ---------- per-stage take review ---------- #}
+    {% for st in shown %}
+    {% set f = files[st] %}
+    {% set v = s.stages.get(st) %}
+    {% set stt = v.status if v else 'pending' %}
+    {% set hide_locked = st == 'keyframes' and f.approved %}
+    {% set n_takes = f.candidates|length %}
+    {% set others = (n_takes - 1) if hide_locked else n_takes %}
+    {% set can_reject = st != 'music' and f.candidates %}
+    {# an open manual request outranks the stored status: the header says what the body is waiting for #}
+    {% set open_req = f.requests and not f.approved %}
+    {% set req_names = f.requests|map('replace', 'MANUAL_', '')|map('replace', '.md', '')|list %}
+    {% set head_st = 'manual_required' if open_req else stt %}
+    <section class="card stage-section" id="stage-{{ st }}">
+      <div class="card-head">
+        <div>
+          <h2><span class="idx">{{ '%02d'|format(loop.index) }}</span>{{ ui.STAGE_TITLE[st] }}<span class="takes">{% if open_req and not n_takes %}· waiting on <span class="mono">{{ req_names|join(', ') }}</span>{% else %}· {{ n_takes }} take{{ '' if n_takes == 1 else 's' }}{% endif %}</span></h2>
+          <div class="blurb">{{ STAGE_BLURB[st] }}</div>
+        </div>
+        <div class="status">
+          {{ ui.chip(head_st, ('save ' ~ req_names|join(', ')) if open_req else (v.note if v else ''), 'lg') }}
+          {# the locked keyframe is already shown in the hero; other stages name their locked file here #}
+          {% if f.approved and not hide_locked %}<span class="tag green" title="Locked file">{{ ui.icon('check') }} {{ f.approved.split('/')[-1] }}</span>{% endif %}
+        </div>
+      </div>
+      <div class="card-body">
+        {% if v and v.status == 'pending' and v.note and v.note.startswith('regenerate') %}
+        <div class="slate warn" style="margin-bottom: var(--s4)">
+          <div class="ico">{{ ui.icon('redo') }}</div>
+          <div class="txt"><b>Marked for regeneration</b> <span class="muted">· {{ v.note[12:] }}</span></div>
+        </div>
+        {% endif %}
+
+        {% if not f.candidates %}
+          {# one message per situation, never a 'run this stage' hint for a stage that already ran #}
+          {% if f.requests %}
+          <div class="slate">
+            <div class="ico">{{ ui.icon('inbox') }}</div>
+            <div class="txt"><b>Waiting on manual input</b> <span class="muted">· the providers passed; save <span class="mono">{{ req_names|join(', ') }}</span> on the manual desk and this stage picks it up.</span></div>
+            <a class="btn sm" href="/ep/{{ ep }}/manual">{{ ui.icon('inbox') }} Open manual desk</a>
+          </div>
+          {% elif stt in ('waiting', 'blocked', 'queued', 'skipped') %}
+          <div class="empty sm">
+            <div class="ico">{{ ui.icon('alert' if stt == 'blocked' else ('bolt' if stt == 'queued' else 'film')) }}</div>
+            <h3>{% if stt == 'waiting' %}Waiting on an earlier stage{% elif stt == 'blocked' %}Blocked · every provider failed{% elif stt == 'queued' %}Queued on a provider{% else %}Skipped for this shot{% endif %}</h3>
+            <p class="why">{% if v and v.note %}<b>{{ v.note }}</b>{% elif stt == 'waiting' %}Lock the upstream take and the pipeline continues on its own.{% elif stt == 'blocked' %}Check the provider chain on the Crew page, then resume the pipeline.{% elif stt == 'queued' %}The result lands here when the provider finishes.{% else %}This shot type does not need a {{ ui.STAGE_TITLE[st]|lower }} pass.{% endif %}</p>
+          </div>
+          {% else %}
+          <div class="empty sm">
+            <div class="ico">{{ ui.icon('waveform' if st in ('voice', 'music') else 'film') }}</div>
+            <h3>No takes yet</h3>
+            <p>Run <code>shotwise run {{ st }} {{ ep }} --shots {{ s.id }}</code> or use <b>Run stage</b> on the shot list.</p>
+          </div>
+          {% endif %}
+        {% else %}
+        {% if f.requests %}
+        <div class="slate" style="margin-bottom: var(--s4)">
+          <div class="ico">{{ ui.icon('inbox') }}</div>
+          <div class="txt"><b>Waiting on manual input</b> <span class="muted">· save <span class="mono">{{ req_names|join(', ') }}</span> on the manual desk.</span></div>
+          <a class="btn sm" href="/ep/{{ ep }}/manual">Open manual desk</a>
+        </div>
+        {% endif %}
+        {% if hide_locked and others > 1 %}<div class="takes-head"><span class="eyebrow">Other takes</span><span class="hint">The locked take is shown above. Approve another to replace it.</span></div>{% endif %}
+        <div class="grid media {{ 'kf' if st == 'keyframes' else '' }} {{ 'one' if hide_locked and others == 1 else '' }}">
+          {% for c in f.candidates %}
+          {% set fname = c.split('/')[-1] %}
+          {% set chosen = f.approved and v and v.note == fname %}
+          {% if not (hide_locked and chosen) %}
+          <figure class="media-item {{ 'chosen' if chosen else '' }} {{ 'wide' if hide_locked and others == 1 else '' }}">
+            {% if st == 'keyframes' %}
+              <div class="frame"><img src="{{ c }}" alt="{{ fname }}" loading="lazy">
+                <div class="frame-tag"><span class="tag onart">Take {{ loop.index }}</span>{% if chosen %}<span class="tag onart ok">{{ ui.icon('check') }} locked</span>{% endif %}</div>
+              </div>
+            {% elif st == 'voice' or st == 'music' %}
+              <div class="audio"><span class="take-lbl" id="take-{{ st }}-{{ loop.index }}">Take {{ loop.index }}</span><audio controls preload="none" src="{{ c }}" aria-label="Take {{ loop.index }} · {{ fname }}"></audio></div>
+            {% else %}
+              <div class="frame"><video controls preload="metadata" src="{{ c }}" aria-label="Take {{ loop.index }} · {{ fname }}"></video>
+                <div class="frame-tag"><span class="tag onart">Take {{ loop.index }}</span>{% if chosen %}<span class="tag onart ok">{{ ui.icon('check') }} locked</span>{% endif %}</div>
+              </div>
+            {% endif %}
+            <figcaption>
+              {% if hide_locked and others == 1 %}<span class="lead">Replace the locked take?</span>{% endif %}
+              <span class="name"><span class="take">T{{ loop.index }}</span>{{ fname }}</span>
+              {% if hide_locked and others == 1 %}<span class="hint">Approving this take unlocks <span class="mono">{{ locked_name }}</span> and makes this one the keyframe downstream stages use.</span>{% endif %}
+              {% if st != 'music' %}
+              <form method="post" action="/ep/{{ ep }}/shot/{{ s.id }}/{{ st }}/approve">
+                <input type="hidden" name="candidate" value="{{ fname }}">
+                <button class="btn sm {{ 'ghost' if chosen else 'primary' }}" {% if chosen %}title="Already locked"{% else %}title="Lock this take as the {{ st }} result"{% endif %}>{{ ui.icon('check') }} {{ 'Locked' if chosen else ('Replace locked take' if hide_locked and others == 1 else 'Approve') }}</button>
+              </form>
+              {% endif %}
+            </figcaption>
+          </figure>
+          {% endif %}
+          {% endfor %}
+        </div>
+        {% if hide_locked and n_takes == 1 %}<p class="muted small">The only take is locked and shown above.</p>{% endif %}
+        {% endif %}
+      </div>
+      {% if can_reject %}
+      <div class="card-foot">
+        <div class="reject-bar">
+          <span class="lbl">{{ ui.icon('redo') }} Not there yet?</span>
+          <form method="post" action="/ep/{{ ep }}/shot/{{ s.id }}/{{ st }}/reject">
+            <input name="note" placeholder="What should change?" required aria-label="Reject note" title="Saved on the shot and added to the next {{ st }} prompt">
+            <button class="btn danger">Reject &amp; regenerate</button>
+          </form>
+          <span class="help">The note goes into the next {{ st }} prompt.</span>
+        </div>
+      </div>
+      {% endif %}
+    </section>
+    {% endfor %}
+
+    {% if prompts %}
+    <section class="section" style="margin-top:0" id="prompts">
+      <div class="section-head"><h2>Prompt history</h2><span class="hint">Newest first · what each provider was asked.</span></div>
+      {% for p in prompts|reverse %}
+      <details class="prompt">
+        <summary><span class="mono small">{{ ui.when(p.at) }}</span><span class="tag gray">{{ p.stage }}</span><span class="mono small">{{ p.provider }}</span>{% if p.files %}<span class="files">{{ p.files|join(', ') }}</span>{% endif %}</summary>
+        <pre>{{ p.prompt }}</pre>
+      </details>
+      {% endfor %}
+    </section>
+    {% endif %}
+  </div>
+
+  {# ---------- side column: call sheet + status. On one-column layouts the call sheet moves above the stages (CSS order). ---------- #}
+  <aside class="stack" style="gap: var(--s5)">
+    <section class="paper" id="callsheet">
+      <div class="paper-head"><div><span class="eyebrow">Call sheet</span><h3>Scene {{ s.scene }}</h3></div><span class="hint mono">{{ s.duration_s }}s</span></div>
+      <div class="paper-body">
+        <dl class="kv">
+          <dt>Action</dt><dd>{{ s.action or '—' }}</dd>
+          <dt>Camera</dt><dd>{{ s.camera or '—' }}</dd>
+          <dt>Location</dt><dd>{{ s.location or '—' }}</dd>
+          {% if s.note %}<dt>Reviewer note</dt><dd class="note">{{ s.note }}</dd>{% endif %}
+        </dl>
+        {% if s.lines %}
+        <hr>
+        <span class="eyebrow">Dialogue · {{ s.lines|length }} line{{ '' if s.lines|length == 1 else 's' }}</span>
+        <ol class="lines" style="margin-top: 10px">
+          {% for l in s.lines %}
+          <li>
+            <span class="avatar" aria-hidden="true">{{ (l.speaker or '?')[:1]|upper }}</span>
+            <div>
+              <span class="speaker">{{ l.speaker }}{% if l.emotion %}<span class="emotion">{{ l.emotion }}</span>{% endif %}</span>
+              <span class="text">{{ l.text }}</span>
+            </div>
+          </li>
+          {% endfor %}
+        </ol>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h3>Stage status</h3><span class="hint">{{ 'this cue' if is_cue else 'pipeline order' }}</span></div>
+      <div class="card-body">
+        <ul class="stage-list">
+        {% for st in (['music'] if is_cue else stages) %}{% set v = s.stages.get(st) %}
+          {% set sf = files.get(st, {}) %}
+          {% set s_open = sf.requests and not sf.approved %}
+          {% set s_names = (sf.requests|map('replace', 'MANUAL_', '')|map('replace', '.md', '')|list) if s_open else [] %}
+          {% set raw_note = (v.note if v and v.note else '')|string %}
+          {% set note = ('save ' ~ s_names|join(', ')) if s_open else (raw_note.replace('MANUAL_', '').replace('.md', '') if raw_note.startswith('MANUAL_') else raw_note) %}
+          <li>
+            {% if st in shown %}<a class="st" href="#stage-{{ st }}">{{ ui.STAGE_TITLE[st] }}</a>{% else %}<span class="st">{{ ui.STAGE_TITLE[st] }}</span>{% endif %}
+            {{ ui.chip('manual_required' if s_open else (v.status if v else 'pending'), note) }}
+            {% if note %}<span class="note" title="{{ raw_note }}">{{ note }}</span>{% endif %}
+          </li>
+        {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h3>Approval log</h3><span class="hint">{{ approvals|length }} decision{{ '' if approvals|length == 1 else 's' }}</span></div>
+      <div class="card-body">
+        {% if approvals %}
+        <ul class="log">
+          {% for a in approvals|reverse %}
+          <li class="{{ a.decision }}"><span class="at">{{ ui.when(a.at) }}</span><b>{{ 'Locked' if a.decision == 'approve' else 'Rejected' }}</b> {{ a.stage }}{% if a.note %} · {{ a.note }}{% endif %}</li>
+          {% endfor %}
+        </ul>
+        {% else %}<p class="muted small">No decisions yet. Approve a take to lock this stage.</p>{% endif %}
+      </div>
+    </section>
+  </aside>
+</div>
+{% endif %}
+{% endblock %}

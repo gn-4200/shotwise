@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Crew · Providers · Shotwise{% endblock %}
+{% block body %}
+<header class="page-head">
+  <div>
+    <span class="eyebrow amber">Crew · providers</span>
+    <h1>Providers</h1>
+    <p class="lede">Who does what on each stage. Defined in {% for f in files %}<code>{{ f }}</code>{{ ' and ' if not loop.last else '' }}{% endfor %}; edit the files, then restart the review page.</p>
+  </div>
+  {% set en = namespace(n=0, manual=0) %}
+  {% for name, p in providers.items() %}{% if p.enabled %}{% set en.n = en.n + 1 %}{% endif %}{% if p.is_manual %}{% set en.manual = en.manual + 1 %}{% endif %}{% endfor %}
+  <div class="actionbar">
+    <a class="btn" href="/usage">{{ ui.icon('gauge') }} Budget <span class="dim">· usage</span></a>
+  </div>
+</header>
+
+<section class="kpis three" aria-label="Key numbers">
+  <div class="kpi"><div class="k">Defined</div><div class="v">{{ providers|length }}</div><div class="h">providers in config</div></div>
+  <div class="kpi ok"><div class="k">Enabled</div><div class="v">{{ en.n }}</div><div class="h">tried in chain order</div></div>
+  <div class="kpi {{ 'warn' if en.manual else '' }}"><div class="k">Manual fallbacks</div><div class="v">{{ en.manual }}</div><div class="h">hand the job to the manual desk</div></div>
+</section>
+
+<section class="card">
+  <div class="card-head">
+    <h2>Stage chains</h2>
+    <div class="legend"><span><i style="background:var(--info)"></i> automated</span><span><i style="background:var(--warn)"></i> manual fallback</span><span><i style="background:var(--deco)"></i> disabled, skipped</span></div>
+  </div>
+  <div class="card-body">
+    {% for st, chain in chains.items() %}
+    <div class="chain-row">
+      <span class="st">{{ ui.STAGE_TITLE.get(st, st|capitalize) }}</span>
+      <div class="chain">
+        {% for n in chain %}{% set p = providers[n] %}
+          <span class="node {{ 'off' if not p.enabled else ('manual' if p.is_manual else '') }}" title="{{ p.type }}{% if not p.enabled %} · disabled{% endif %}{% if p.is_manual %} · manual fallback{% endif %}"><i></i>{{ n }}</span>
+          {% if not loop.last %}<span class="arrow">→</span>{% endif %}
+        {% endfor %}
+        {% if not chain %}<span class="muted small">ffmpeg only, no provider</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>All providers</h2><span class="hint">Tried in chain order; disabled ones are skipped.</span></div>
+  <div class="scroller table-scroller">
+  <div class="table-wrap sticky-first sticky-last flush">
+    <table class="table providers">
+      <thead><tr><th>Name</th><th class="hide-m">Type</th><th class="hide-m">Model / workflow</th><th class="hide-t">Key env</th><th class="hide-t">Limits</th><th class="num">Enabled</th></tr></thead>
+      <tbody>
+      {% for name, p in providers.items() %}
+        <tr>
+          {% set lim = [] %}{% if p.limits is mapping %}{% for k, v in p.limits.items() %}{% set _ = lim.append(k ~ ' ' ~ v) %}{% endfor %}{% elif p.limits %}{% set _ = lim.append(p.limits|string) %}{% endif %}
+          <td class="mono nowrap">{{ name }}{% if p.is_manual %} <span class="tag amber" style="margin-left:6px">manual</span>{% endif %}
+            {# phones: type and model fold under the name; tablets and phones: key env and limits fold under it too #}
+            <span class="sub m-only">{{ p.type }}{% if p.model or p.workflow %} · {{ p.model or p.workflow }}{% endif %}</span>
+            {% if p.api_key_env or lim %}<span class="sub t-only">{% if p.api_key_env %}<span class="mono">{{ p.api_key_env }}</span>{% endif %}{% if p.api_key_env and lim %} · {% endif %}{{ lim|join(', ') }}</span>{% endif %}</td>
+          <td class="small muted nowrap hide-m">{{ p.type }}</td>
+          <td class="small hide-m">{{ p.model or p.workflow or '—' }}</td>
+          <td class="mono small muted hide-t">{{ p.api_key_env or '—' }}</td>
+          <td class="small hide-t">{% if lim %}{% for l in lim %}<span class="tag gray" style="margin:1px 2px 1px 0">{{ l }}</span>{% endfor %}{% else %}<span class="dim">—</span>{% endif %}</td>
+          <td class="num"><span class="onoff {{ 'on' if p.enabled else 'off' }}"><i></i>{{ 'on' if p.enabled else 'off' }}</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  </div>
+</section>
+{% endblock %}

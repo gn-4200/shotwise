@@ -1,0 +1,10 @@
+# Cast used only by the tests, so they do not depend on the story bible in bible/cast.yaml.
+characters:
+  Ayla:
+    look: "Ayla, 24, short black hair, grey signal-keeper coat, brass whistle on a cord"
+    voice_ref: ""
+    voice: af_bella
+  Tariq:
+    look: "Tariq, 31, tall, cropped beard, patched blue work jacket, tool belt"
+    voice_ref: ""
+    voice: am_michael

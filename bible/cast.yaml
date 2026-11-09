@@ -1,0 +1,46 @@
+# Fixed look strings, pasted word for word into every image and video prompt. Do not paraphrase them.
+characters:
+  Taimur:
+    look: "Taimur, 23, lean sun-darkened face, short black beard, thin scar through the left eyebrow, dark grey wool coat over a faded indigo kurta, salt-crusted leather boots, curved bone-handled knife at the belt, dust cloth at the neck"
+    voice_ref: bible/characters/taimur/voice.wav
+    voice: am_michael
+  Sohail:
+    look: "Sohail, 14, thin boy, large dark eyes, cropped hair under a loose dust-coloured cap, oversized patched brown vest over a sand-coloured shirt, rope belt, salt burns on the forearms"
+    voice_ref: bible/characters/sohail/voice.wav
+    voice: am_adam
+  Reg:
+    look: "Reg, a sand-wolf the size of a horse, coat white as salt with grey dust along the spine, amber eyes, torn left ear, arrow scar on the right shoulder, silent, moving low"
+    voice_ref: ""
+    voice: ""
+  Qasir Beg:
+    look: "Qasir Beg, 50s, heavy calm warlord, trimmed grey beard, black quilted robe with red lining, silver rings, seated"
+    voice_ref: bible/characters/qasir-beg/voice.wav
+    voice: am_onyx
+  Jahan:
+    look: "Captain Jahan, 35, tall hawk-faced rider, black turban, red sash over lamellar leather armour, long spear, black horse"
+    voice_ref: bible/characters/jahan/voice.wav
+    voice: am_echo
+  Amma:
+    look: "Amma, 50s, grey-brown shawl over her hair and shoulders, lined weathered face, seated by a hearth with an oil lamp"
+    voice_ref: bible/characters/amma/voice.wav
+    voice: af_bella
+  Mirza:
+    look: "Mirza, 60s town elder, white beard, white cap, embroidered waistcoat over a long shirt, walking staff"
+    voice_ref: bible/characters/mirza/voice.wav
+    voice: am_fenrir
+
+locations:
+  Kharsa:
+    look: "walled flat-roofed sandstone town at the edge of white salt flats, one gate, lantern-lit lanes, salt dust on every surface"
+  The White Field:
+    look: "salt pans at dawn, shallow water like mirrors, wooden rakes, white salt mounds, two camels, pale pink sky"
+  The Salt Cave:
+    look: "old salt-mine tunnel, crystal walls glowing amber in lamplight, a hidden chamber, salt dust in the air"
+  The Salt Road:
+    look: "caravan track across tall dunes, stone cairns, wind-blown sand, bones of old carts, hard sunlight"
+  Amma's House:
+    look: "small clay-walled room, hearth fire, hanging oil lamp, woven rug, a curtain to the sleeping room"
+  Qila Surkh:
+    look: "red mud-brick fortress on the horizon at dusk, banners, torchlight on the walls, seen from the dunes"
+
+emotion_exaggeration: { calm: 0.3, neutral: 0.5, warm: 0.55, excited: 0.7, angry: 0.8, afraid: 0.75, grief: 0.6 }

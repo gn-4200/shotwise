@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}New episode · Shotwise{% endblock %}
+{% block body %}
+<header class="page-head">
+  <div>
+    <span class="eyebrow amber">New episode</span>
+    <h1>Start an episode</h1>
+    <p class="lede">Give it a name and an idea. Shotwise writes the script, breaks it into shots and starts producing. You review the results as they arrive.</p>
+  </div>
+</header>
+
+<form method="post" action="/episodes/new" enctype="multipart/form-data" class="card form" style="max-width:760px">
+  <label class="field"><span>Episode name</span><input name="name" required placeholder="ep01-the-dry-canal" autocomplete="off"></label>
+  <label class="field"><span>Idea for this episode</span>
+    <textarea name="idea" rows="5" placeholder="Ayla and Tariq follow the green signal into the canal and find who is taking the lanterns..."></textarea></label>
+  <div class="row-actions">
+    <button class="btn primary">Generate episode</button>
+    <span class="hint">Script, shots, keyframes and voices start in the background.</span>
+  </div>
+  <details class="adv">
+    <summary>I already have a script</summary>
+    <label class="field"><span>Paste it</span><textarea name="script" rows="8" placeholder="# Title&#10;## Scene 1, Location, time&#10;Action...&#10;NAME: line"></textarea></label>
+    <label class="field"><span>or upload a .md / .txt file</span><input type="file" name="script_file" accept=".md,.txt"></label>
+  </details>
+</form>
+{% endblock %}

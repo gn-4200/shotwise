@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "providers": {
+    "gemini_free": {
+      "type": "llm.gemini",
+      "enabled": true,
+      "model": "gemini-2.5-flash",
+      "api_key_env": "GEMINI_API_KEY",
+      "limits": {
+        "per_day": 150
+      },
+      "params": {
+        "temperature": 0.6
+      }
+    },
+    "claude": {
+      "type": "llm.anthropic",
+      "enabled": false,
+      "model": "claude-opus-5-5",
+      "api_key_env": "ANTHROPIC_API_KEY",
+      "params": {
+        "effort": "medium",
+        "max_tokens": 16000
+      }
+    },
+    "openai": {
+      "type": "llm.openai",
+      "enabled": false,
+      "model": "gpt-5",
+      "api_key_env": "OPENAI_API_KEY"
+    },
+    "ollama_local": {
+      "type": "llm.openai",
+      "enabled": false,
+      "model": "qwen3:14b",
+      "base_url": "http://localhost:11434/v1"
+    },
+    "manual_text": {
+      "type": "llm.manual",
+      "enabled": true
+    },
+    "comfy_qwen_image": {
+      "type": "image.comfyui",
+      "enabled": true,
+      "base_url": "${COMFY_URL:-http://127.0.0.1:8188}",
+      "workflow": "workflows/qwen_image_edit.json",
+      "inputs": {
+        "prompt": "6.inputs.text",
+        "negative": "7.inputs.text",
+        "ref_image": "12.inputs.image",
+        "seed": "3.inputs.seed",
+        "width": "5.inputs.width",
+        "height": "5.inputs.height"
+      },
+      "params": {
+        "timeout_s": 600
+      }
+    },
+    "manual_image": {
+      "type": "image.manual",
+      "enabled": true
+    },
+    "comfy_wan22": {
+      "type": "video.comfyui",
+      "enabled": true,
+      "base_url": "${COMFY_URL:-http://127.0.0.1:8188}",
+      "workflow": "workflows/wan22_i2v_5b.json",
+      "inputs": {
+        "prompt": "16.inputs.text",
+        "negative": "17.inputs.text",
+        "keyframe": "52.inputs.image",
+        "seed": "3.inputs.seed",
+        "length": "55.inputs.length",
+        "width": "55.inputs.width",
+        "height": "55.inputs.height"
+      },
+      "params": {
+        "timeout_s": 2400,
+        "fps": 24
+      }
+    },
+    "comfy_ltx23": {
+      "type": "video.comfyui",
+      "enabled": false,
+      "workflow": "workflows/ltx23_i2v.json",
+      "inputs": {
+        "prompt": "8.inputs.text",
+        "keyframe": "20.inputs.image",
+        "seed": "3.inputs.seed"
+      }
+    },
+    "manual_video": {
+      "type": "video.manual",
+      "enabled": true
+    },
+    "chatterbox_local": {
+      "type": "tts.chatterbox",
+      "enabled": true,
+      "params": {
+        "device": "cuda",
+        "exaggeration": 0.5,
+        "cfg_weight": 0.5
+      }
+    },
+    "kokoro_local": {
+      "type": "tts.kokoro",
+      "enabled": true,
+      "params": {
+        "device": "cpu",
+        "voice": "af_heart",
+        "lang": "a"
+      }
+    },
+    "manual_audio": {
+      "type": "tts.manual",
+      "enabled": true
+    },
+    "comfy_latentsync": {
+      "type": "lipsync.comfyui",
+      "enabled": true,
+      "workflow": "workflows/latentsync.json",
+      "inputs": {
+        "video": "10.inputs.video",
+        "audio": "11.inputs.audio",
+        "seed": "3.inputs.seed"
+      }
+    },
+    "comfy_acestep": {
+      "type": "music.comfyui",
+      "enabled": true,
+      "workflow": "workflows/acestep.json",
+      "inputs": {
+        "prompt": "14.inputs.tags",
+        "lyrics": "14.inputs.lyrics",
+        "seconds": "17.inputs.seconds",
+        "seed": "3.inputs.seed"
+      }
+    },
+    "manual_music": {
+      "type": "music.manual",
+      "enabled": true
+    },
+    "youtube": {
+      "type": "publish.youtube",
+      "enabled": true,
+      "params": {
+        "client_secrets": "secrets/youtube_client.json",
+        "token": "secrets/youtube_token.json",
+        "category_id": "1"
+      }
+    }
+  }
+}

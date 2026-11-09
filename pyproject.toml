@@ -1,0 +1,30 @@
+[project]
+name = "shotwise"
+version = "0.1.0"
+description = "Shotwise: config-driven AI story-series production pipeline with fallback chains and a manual lane"
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.7", "pyyaml", "jinja2", "typer", "python-dotenv", "websocket-client",
+  "fastapi", "uvicorn", "python-multipart",
+  "google-genai", "anthropic", "openai",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "httpx"]
+media = ["pydub"]
+tts = ["chatterbox-tts", "torchaudio", "kokoro", "soundfile"]
+qc = ["insightface", "onnxruntime", "opencv-python"]
+publish = ["google-api-python-client", "google-auth-oauthlib"]
+
+[project.scripts]
+shotwise = "shotwise.cli:app"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["shotwise*"]
+
+[tool.setuptools.package-data]
+shotwise = ["review/templates/*.html", "review/static/*"]

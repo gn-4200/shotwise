@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}Dailies · Shotwise{% endblock %}
+{% block body %}
+{% set ns = namespace(shots=0, cues=0, dur=0, manual=0, blocked=0, review=0, done=0, total=0) %}
+{% for c in cards %}
+  {% set ns.shots = ns.shots + c.shots %}{% set ns.cues = ns.cues + c.cues %}{% set ns.dur = ns.dur + c.duration %}
+  {% set ns.manual = ns.manual + c.manual %}{% set ns.blocked = ns.blocked + c.blocked %}
+  {% for st, v in c.stats.items() %}
+    {% set ns.review = ns.review + v.counts.get('needs_review', 0) %}
+    {% set ns.done = ns.done + v.done %}{% set ns.total = ns.total + c.shots %}
+  {% endfor %}
+{% endfor %}
+{% set running = jobs.values()|select('equalto', 'running')|list|length %}
+{% set pct = ((100 * ns.done / ns.total)|int) if ns.total else 0 %}
+
+<header class="page-head">
+  <div>
+    <span class="eyebrow amber">Dailies · every episode</span>
+    <h1>Every episode on the slate</h1>
+    <p class="lede">Stage progress, open manual requests and anything blocked, across the whole production. Open an episode to review takes and lock picture.</p>
+  </div>
+  <div class="actionbar">
+    {% if running %}<span class="tag blue">{{ ui.icon('bolt') }} {{ running }} job{{ '' if running == 1 else 's' }} running</span>{% endif %}
+    <a class="btn primary" href="/episodes/new">{{ ui.icon('clap') }} New episode</a>
+    <a class="btn" href="/settings">{{ ui.icon('users') }} Settings</a>
+  </div>
+</header>
+
+{% if cards %}
+<section class="kpis" aria-label="Key numbers">
+  <div class="kpi"><div class="k">Episodes</div><div class="v">{{ cards|length }}</div><div class="h">{{ pending|length }} awaiting breakdown</div></div>
+  <div class="kpi"><div class="k">Shots</div><div class="v">{{ ns.shots }}<small>+ {{ ns.cues }} cues</small></div><div class="h">{{ ui.duration(ns.dur) }} planned runtime</div></div>
+  <div class="kpi accent"><div class="k">Pipeline done</div><div class="v">{{ pct }}<small>%</small></div><div class="h">{{ ns.done }} of {{ ns.total }} stage runs</div></div>
+  <div class="kpi {{ 'violet' if ns.review else '' }}"><div class="k">Needs review</div><div class="v">{{ ns.review }}</div><div class="h">takes waiting for a pick</div></div>
+  <div class="kpi {{ 'warn' if ns.manual else '' }}"><div class="k">Manual</div><div class="v">{{ ns.manual }}</div><div class="h">requests waiting on you</div></div>
+  <div class="kpi {{ 'danger' if ns.blocked else '' }}"><div class="k">Blocked</div><div class="v">{{ ns.blocked }}</div><div class="h">stage runs need attention</div></div>
+</section>
+{% endif %}
+
+{% if pending %}
+<section class="section" style="margin-top:0">
+  <div class="section-head"><h2>Waiting for a breakdown</h2><span class="hint">Scripts on disk that have not been broken into shots yet.</span></div>
+  <div class="stack">
+  {% for ep in pending %}
+    <div class="slate">
+      <div class="ico">{{ ui.icon('clap') }}</div>
+      {% set pi = pending_info.get(ep, {}) %}
+      <div class="txt"><b>{{ ep }}</b>
+        {% if pi.manual %}<span class="muted">is waiting on you: {{ pi.manual }} request{{ '' if pi.manual == 1 else 's' }} on the</span> <a href="/ep/{{ ep }}/manual">Manual desk</a><span class="muted">. Deliver them, then continue.</span>
+        {% elif not pi.script %}<span class="muted">has an idea but no script yet. Continue to write the script and break it into shots.</span>
+        {% else %}<span class="muted">has a script but no breakdown. Continue to generate scenes, shots and cues.</span>{% endif %}</div>
+      {% if jobs.get(ep ~ ':breakdown') == 'running' or jobs.get(ep ~ ':resume') == 'running' %}<span class="tag blue">working…</span>
+      {% else %}<form method="post" action="/ep/{{ ep }}/breakdown"><button class="btn primary">{{ ui.icon('bolt') }} Continue</button></form>{% endif %}
+    </div>
+  {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if not cards and not pending %}
+<section class="empty">
+  <div class="ico">{{ ui.icon('film') }}</div>
+  <h2>Nothing on the slate yet</h2>
+  <p>Write <code>episodes/&lt;ep&gt;/script.md</code>, then run <code>shotwise breakdown &lt;ep&gt;</code>. The episode will appear here as a poster with live stage progress.</p>
+</section>
+{% endif %}
+
+{% if cards %}
+<section class="section" {% if not pending %}style="margin-top:0"{% endif %}>
+  <div class="section-head"><h2>Episodes</h2>{{ ui.legend() }}</div>
+  <div class="grid posters {{ 'single' if cards|length == 1 else '' }}">
+  {% for c in cards %}
+    {% set rev = namespace(n=0, queued=0) %}
+    {% for st, v in c.stats.items() %}{% set rev.n = rev.n + v.counts.get('needs_review', 0) %}{% set rev.queued = rev.queued + v.counts.get('queued', 0) %}{% endfor %}
+    {# the context carries no per-shot data, so the poster is the episode's opening shot; the tag names it without claiming it is the first locked frame #}
+    {% set poster_sid = c.get('first_shot') or 's01_01' %}
+    <article class="card poster {{ 'wide' if cards|length == 1 else '' }}">
+      {{ ui.art(c.name, poster_sid, alt=c.name ~ ' poster', tag='Keyframe · ' ~ poster_sid) }}
+      <div class="poster-body">
+        <div class="poster-head">
+          <div>
+            <h3 class="title"><a href="/ep/{{ c.name }}">{{ c.name }}</a></h3>
+            <div class="sub">{{ c.shots }} shots · {{ c.cues }} cues · {{ ui.duration(c.duration) }}</div>
+          </div>
+          <a class="btn sm" href="/ep/{{ c.name }}">Open shot list</a>
+        </div>
+        <div class="stage-rows">
+          {% for st, v in c.stats.items() %}
+          <div class="stage-row">
+            <span class="st">{{ st }}</span>
+            {{ ui.strip(v.counts, c.shots) }}
+            <span class="n" title="{{ v.done }} of {{ c.shots }} locked, done or skipped">{{ v.done }}/{{ c.shots }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="poster-foot">
+          {% if rev.n %}<a class="tag violet" href="/ep/{{ c.name }}?status=needs_review">{{ rev.n }} need review</a>{% endif %}
+          {% if c.manual %}<a class="tag amber" href="/ep/{{ c.name }}/manual">{{ c.manual }} manual</a>{% endif %}
+          {% if c.blocked %}<a class="tag red" href="/ep/{{ c.name }}?status=blocked">{{ c.blocked }} blocked</a>{% endif %}
+          {% if rev.queued %}<a class="tag blue" href="/ep/{{ c.name }}?status=queued">{{ rev.queued }} queued</a>{% endif %}
+          {% for k, v in jobs.items() if k.startswith(c.name ~ ':') %}
+            <span class="tag {{ 'blue' if v == 'running' else ('red' if v.startswith('failed') else 'gray') }}">{{ k.split(':')[1] }}: {{ v }}</span>
+          {% endfor %}
+          {% if not rev.n and not c.manual and not c.blocked %}<span class="note">{{ ui.icon('check') }} Nothing waiting on you.</span>{% endif %}
+        </div>
+      </div>
+    </article>
+  {% endfor %}
+  </div>
+</section>
+
+<details class="keystrip section">
+  <summary>{{ ui.icon('key') }} Status key <span class="hint">what each chip means · pipeline order {% for st in stages %}<b class="mono">{{ st }}</b>{{ ' → ' if not loop.last else '' }}{% endfor %}</span></summary>
+  <ul class="keylist">
+    {% for k in ['needs_review', 'approved', 'done', 'manual_required', 'queued', 'waiting', 'blocked', 'skipped', 'pending'] %}
+    <li>{{ ui.chip(k) }}<span>{{ ui.STATUS_PLAIN[k].split(' · ')[1]|capitalize }}.</span></li>
+    {% endfor %}
+  </ul>
+</details>
+{% endif %}
+{% endblock %}

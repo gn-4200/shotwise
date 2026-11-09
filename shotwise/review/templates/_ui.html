@@ -1,0 +1,125 @@
+{# Shared UI macros: status chips, segmented strips, framed keyframe art, icons. #}
+
+{# Production vocabulary with a plain-language fallback (tooltips, key). #}
+{% set STATUS_LABEL = {
+  'pending': 'Pending', 'needs_review': 'Needs review', 'approved': 'Locked', 'done': 'Done',
+  'manual_required': 'Manual', 'queued': 'Queued', 'waiting': 'Waiting', 'blocked': 'Blocked', 'skipped': 'Skipped'
+} %}
+{% set STATUS_PLAIN = {
+  'pending': 'Pending · not started yet',
+  'needs_review': 'Needs review · takes are in, pick one and lock it',
+  'approved': 'Locked · approved, downstream stages can run',
+  'done': 'Done · finished without a human gate',
+  'manual_required': 'Manual · providers passed, a human has to supply the file',
+  'queued': 'Queued · handed to a provider, result pending',
+  'waiting': 'Waiting · blocked on an earlier stage\'s approval',
+  'blocked': 'Blocked · every provider failed, needs attention',
+  'skipped': 'Skipped · not needed for this shot type'
+} %}
+{% set STAGE_TITLE = {'keyframes': 'Keyframes', 'video': 'Video', 'voice': 'Voice', 'lipsync': 'Lip sync', 'music': 'Music'} %}
+{% set STAGE_SHORT = {'keyframes': 'KF', 'video': 'VID', 'voice': 'VO', 'lipsync': 'LIP', 'music': 'MUS'} %}
+{# Count phrasing: '5 need review' / '1 needs review'; the rest are nouns and need no verb agreement. #}
+{% set COUNT_LABEL = {'needs_review': 'need review', 'manual_required': 'manual', 'queued': 'queued', 'waiting': 'waiting', 'blocked': 'blocked'} %}
+{% set STRIP_ORDER = ['approved', 'done', 'skipped', 'needs_review', 'manual_required', 'queued', 'waiting', 'blocked', 'pending'] %}
+{% set OPEN_STATUSES = ['needs_review', 'manual_required', 'queued', 'waiting', 'blocked'] %}
+
+{% macro label(status) -%}{{ STATUS_LABEL.get(status, status.replace('_', ' ')) }}{%- endmacro %}
+{% macro plain(status) -%}{{ STATUS_PLAIN.get(status, status.replace('_', ' ')) }}{%- endmacro %}
+
+{% macro chip(status, note='', size='') -%}
+{%- set st = status or 'pending' -%}
+<span class="chip s-{{ st }} {{ size }}" title="{{ STATUS_PLAIN.get(st, st) }}{% if note %} — {{ note }}{% endif %}"><i></i>{{ STATUS_LABEL.get(st, st.replace('_', ' ')) }}</span>
+{%- endmacro %}
+
+{# Segmented multi-colour status strip: one segment per status count. #}
+{% macro strip(counts, total, size='') -%}
+{%- set parts = [] -%}
+{%- for k in STRIP_ORDER if counts.get(k) %}{% set _ = parts.append(counts[k] ~ ' ' ~ STATUS_LABEL[k]|lower) %}{% endfor -%}
+<div class="strip {{ size }}" role="img" aria-label="{{ parts|join(', ') or 'no shots' }}" title="{{ parts|join(' · ') or 'no shots' }}">
+{%- for k in STRIP_ORDER if counts.get(k) -%}
+<span class="seg-{{ k }}" style="width: {{ '%.1f'|format(100 * counts[k] / total) if total else 0 }}%"></span>
+{%- endfor -%}
+</div>
+{%- endmacro %}
+
+{% macro legend(keys=None) -%}
+<span class="legend" aria-label="Strip colours">
+{%- for k in (keys or ['approved', 'needs_review', 'manual_required', 'queued', 'waiting', 'blocked', 'skipped']) -%}
+<span title="{{ STATUS_PLAIN[k] }}"><i class="seg-{{ k }}"></i>{{ STATUS_LABEL[k] }}</span>
+{%- endfor -%}
+</span>
+{%- endmacro %}
+
+{# Clickable per-status counts that deep-link to ?status=&stage=. #}
+{% macro countlinks(ep, st, counts) -%}
+{%- for k in OPEN_STATUSES if counts.get(k) -%}
+<a class="cnt s-{{ k }}" href="/ep/{{ ep }}?status={{ k }}&amp;stage={{ st }}" title="Show shots whose {{ st }} is: {{ STATUS_PLAIN[k] }}"><i></i>{{ counts[k] }} {{ 'needs review' if k == 'needs_review' and counts[k] == 1 else COUNT_LABEL[k] }}</a>
+{%- endfor -%}
+{%- endmacro %}
+
+{# Framed 16:9 keyframe art for a shot; falls back approved -> cand_1 -> placeholder. #}
+{% macro art(ep, sid, alt='', tag='') -%}
+<div class="frame">
+  <img src="/media/{{ ep }}/shots/{{ sid }}/keyframes/approved.png"
+       data-alt="/media/{{ ep }}/shots/{{ sid }}/keyframes/cand_1.png"
+       alt="{{ alt or sid }}" loading="lazy" onerror="window.swFallback ? swFallback(this) : (window.__swErr = window.__swErr || []).push(this)">
+  <div class="empty-art">{{ icon('film') }}</div>
+  {% if tag %}<div class="frame-tag"><span class="tag onart">{{ tag }}</span></div>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro icon(name) -%}
+{%- if name == 'film' -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></svg>
+{%- elif name == 'play' -%}
+<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
+{%- elif name == 'check' -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+{%- elif name == 'redo' -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+{%- elif name == 'copy' -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>
+{%- elif name == 'clap' -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10h18v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 10l1.5-5 16.5 2.5L20 10"/><path d="M8 5.8l1.8 3.4M13 6.6l1.8 3.4"/></svg>
+{%- elif name == 'upload' -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M6 10l6-6 6 6"/><path d="M4 20h16"/></svg>
+{%- elif name == 'bolt' -%}
+<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>
+{%- elif name == 'star' -%}
+<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 6.2 6.8.8-5 4.7 1.3 6.8L12 17.6 6 21l1.3-6.8-5-4.7 6.8-.8z"/></svg>
+{%- elif name == 'inbox' -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13l2.5-8h13L21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M3 13h5l1.5 3h5L16 13h5"/></svg>
+{%- elif name == 'waveform' -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 7v10M21 12h0"/></svg>
+{%- elif name == 'grid' -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+{%- elif name == 'rows' -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+{%- elif name == 'back' -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+{%- elif name == 'alert' -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg>
+{%- elif name == 'gauge' -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/></svg>
+{%- elif name == 'users' -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21 20a6 6 0 0 0-4.5-5.8"/></svg>
+{%- elif name == 'key' -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.5"/></svg>
+{%- endif -%}
+{%- endmacro %}
+
+{# '2026-10-07T18:43:08' -> '07 Oct · 18:43'; app.js upgrades it to 'today 18:43' when it can. Full ISO stays in the title. #}
+{% set MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] %}
+{% macro when(iso) -%}
+{%- set t = (iso or '')|string -%}
+{%- if t|length >= 16 and t[4] == '-' and t[7] == '-' and t[10] in 'T ' -%}
+<time class="when" datetime="{{ t }}" title="{{ t }}" data-ts="{{ t }}">{{ t[8:10] }} {{ MONTHS[(t[5:7]|int) - 1] }} · {{ t[11:16] }}</time>
+{%- else -%}
+<span class="when">{{ t or '—' }}</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro duration(seconds) -%}
+{%- set s = (seconds or 0)|int -%}
+{{ s // 60 }}m {{ '%02d'|format(s % 60) }}s
+{%- endmacro %}

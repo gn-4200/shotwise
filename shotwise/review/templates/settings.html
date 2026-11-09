@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Settings · Shotwise{% endblock %}
+{% block body %}
+<header class="page-head">
+  <div>
+    <span class="eyebrow amber">Settings</span>
+    <h1>Who does what</h1>
+    <p class="lede">Each job runs on the active provider and falls back along the chain. Add a provider with its API key, then pick it.</p>
+  </div>
+  <div class="actionbar">
+    <a class="btn" href="/usage">Usage &amp; quotas</a>
+    <a class="btn" href="/providers">Provider details</a>
+  </div>
+</header>
+
+<section class="section" style="margin-top:0">
+  <div class="section-head"><h2>Jobs</h2><span class="hint">Pick a provider and press Use. Manual means you deliver the file yourself.</span></div>
+  <table class="table">
+    <thead><tr><th>Job</th><th>Active now</th><th>Change to</th><th>Fallback order</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><b>{{ r.stage }}</b></td>
+        <td><span class="tag {{ 'green' if 'manual' not in r.active else 'amber' }}">{{ r.active }}</span></td>
+        <td>
+          <form method="post" action="/settings/use" class="inline">
+            <input type="hidden" name="stage" value="{{ r.stage }}">
+            <select name="provider">{% for o in r.options %}<option value="{{ o }}" {{ 'selected' if o == r.active }}>{{ o }}</option>{% endfor %}</select>
+            <button class="btn sm">Use</button>
+          </form>
+        </td>
+        <td class="mono small">{{ r.chain|join(' → ') }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="section">
+  <div class="section-head"><h2>Providers</h2><span class="hint">Keys live in the local .env file, never in the config.</span></div>
+  <table class="table">
+    <thead><tr><th>Name</th><th>Type</th><th>Model / workflow</th><th>API key</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for p in provs %}
+      <tr>
+        <td class="mono">{{ p.name }}</td>
+        <td>{{ p.type }}</td>
+        <td class="small">{{ p.model }}</td>
+        <td>{% if p.key_set is none %}<span class="muted">not needed</span>{% elif p.key_set %}<span class="tag green">set</span>{% else %}<span class="tag red">missing {{ p.key_env }}</span>{% endif %}</td>
+        <td><span class="tag {{ 'green' if p.enabled else 'gray' }}">{{ 'on' if p.enabled else 'off' }}</span></td>
+        <td class="row-actions">
+          <form method="post" action="/settings/provider/{{ p.name }}/toggle" class="inline"><button class="btn sm">{{ 'Disable' if p.enabled else 'Enable' }}</button></form>
+          {% if not p.manual %}<form method="post" action="/settings/provider/{{ p.name }}/delete" class="inline" onsubmit="return confirm('Remove {{ p.name }}?')"><button class="btn sm danger">Remove</button></form>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="section">
+  <div class="section-head"><h2>Add a provider</h2><span class="hint">Example: name claude, type Anthropic Claude, model claude-opus-5-5, paste the key.</span></div>
+  <form method="post" action="/settings/provider/add" class="card form" style="max-width:760px">
+    <div class="grid2">
+      <label class="field"><span>Name</span><input name="name" required placeholder="claude"></label>
+      <label class="field"><span>Type</span><select name="type">{% for t, label in types %}<option value="{{ t }}">{{ label }}</option>{% endfor %}</select></label>
+      <label class="field"><span>Model (text providers)</span><input name="model" placeholder="claude-opus-5-5"></label>
+      <label class="field"><span>API key</span><input name="api_key" type="password" placeholder="paste the key" autocomplete="off"></label>
+      <label class="field"><span>Base URL (optional, OpenAI-compatible servers)</span><input name="base_url" placeholder="http://localhost:11434/v1"></label>
+      <label class="field"><span>Workflow file (ComfyUI providers)</span><input name="workflow" placeholder="workflows/my_model.json"></label>
+    </div>
+    <div class="row-actions"><button class="btn primary">Add provider</button><span class="hint">Config files: {{ cfg_files|join(', ') }}</span></div>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% import "_ui.html" as ui %}
+{% block title %}{{ ep }} · Shot list · Shotwise{% endblock %}
+
+{% set ns = namespace(review=0, blocked=0, manual=0, queued=0, waiting=0) %}
+{% for st, v in stats.items() %}
+  {% set ns.review = ns.review + v.counts.get('needs_review', 0) %}
+  {% set ns.blocked = ns.blocked + v.counts.get('blocked', 0) %}
+  {% set ns.manual = ns.manual + v.counts.get('manual_required', 0) %}
+  {% set ns.queued = ns.queued + v.counts.get('queued', 0) %}
+  {% set ns.waiting = ns.waiting + v.counts.get('waiting', 0) %}
+{% endfor %}
+{% set first_stat = stats.values()|list|first %}
+{% set total_shots = (first_stat.counts.values()|sum) if first_stat else shots|length %}
+
+{% block subnav %}
+<nav class="subnav" aria-label="Episode">
+  <div class="subnav-in">
+    <span class="subnav-ep"><span class="eyebrow">Episode</span>{{ ep }}</span>
+    <div class="scroller subnav-scroller">
+      <div class="subnav-links">
+        <a href="/ep/{{ ep }}" class="{{ 'active' if not status else '' }}">Shot list</a>
+        <a href="/ep/{{ ep }}?status=needs_review" class="{{ 'active' if status == 'needs_review' and not stage else '' }}" title="Takes are in; pick one and lock it"><span class="lng">Needs </span>Review {% if ns.review %}<span class="count">{{ ns.review }}</span>{% endif %}</a>
+        {# the badge counts open request files, the same number the desk, the dashboard KPI and the poster tag show #}
+        {% set manual_n = manual if manual is defined and manual is not none else ns.manual %}
+        <a href="/ep/{{ ep }}/manual" title="{{ manual_n }} request file{{ '' if manual_n == 1 else 's' }} the providers could not fill (voice lines, music cues, video)">Manual<span class="lng"> desk</span> {% if manual_n %}<span class="count">{{ manual_n }}<span class="unit"> request{{ '' if manual_n == 1 else 's' }}</span></span>{% endif %}</a>
+        <a href="/ep/{{ ep }}?status=blocked" class="{{ 'active' if status == 'blocked' and not stage else '' }}" title="Every provider failed">Blocked {% if ns.blocked %}<span class="count">{{ ns.blocked }}</span>{% endif %}</a>
+        <span class="spacer"></span>
+        {% for k, v in jobs.items() if k.startswith(ep ~ ':') %}
+          <span class="tag {{ 'blue' if v == 'running' else ('red' if v.startswith('failed') else 'gray') }}">{{ k.split(':')[1] }}: {{ v }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</nav>
+{% endblock %}
+
+{% block body %}
+<header class="page-head">
+  <div>
+    <div class="crumbs"><a href="/">Dailies</a><span class="sep">/</span><span>{{ ep }}</span></div>
+    <h1>{% if not status %}Shot list{% else %}{{ ui.label(status) }}{% if stage %} <span class="dim">·</span> {{ ui.STAGE_TITLE.get(stage, stage) }}{% endif %}{% endif %}</h1>
+    <div class="meta">
+      <span><b>{{ shots|length }}</b> shot{{ '' if shots|length == 1 else 's' }}{% if status %} where {% if stage %}<b>{{ stage }}</b> is{% else %}any stage is{% endif %} <b>{{ ui.label(status)|lower }}</b>{% endif %}</span>
+      {% if status %}<a href="/ep/{{ ep }}" class="clear">Clear filter</a>{% endif %}
+      {% if cues %}<span><b>{{ cues|length }}</b> music cue{{ '' if cues|length == 1 else 's' }}</span>{% endif %}
+      {% if ns.review %}<span><b>{{ ns.review }}</b> need review</span>{% endif %}
+      {% if ns.queued %}<span><b>{{ ns.queued }}</b> queued</span>{% endif %}
+    </div>
+  </div>
+  <div class="actionbar">
+    <details class="adv"><summary>Run one stage only</summary>
+    <div class="btn-group" role="group" aria-label="Run a stage for pending shots">
+      <span class="group-label">Run stage</span>
+      {% for st in stages %}
+      <form method="post" action="/ep/{{ ep }}/run/{{ st }}"><button class="btn" title="Run {{ st }} for every pending shot" {% if jobs.get(ep ~ ':' ~ st) == 'running' %}disabled{% endif %}>{{ st }}</button></form>
+      {% endfor %}
+    </div>
+    </details>
+    <form method="post" action="/ep/{{ ep }}/resume"><button class="btn primary" {% if jobs.get(ep ~ ':resume') == 'running' %}disabled{% endif %}>{{ ui.icon('play') }} Resume pipeline</button></form>
+  </div>
+</header>
+
+<section class="stats" aria-label="Stage progress">
+  {% for st, v in stats.items() %}
+  {% set tot = v.counts.values()|sum %}
+  {% set open = namespace(n=0) %}{% for k in ui.OPEN_STATUSES %}{% set open.n = open.n + v.counts.get(k, 0) %}{% endfor %}
+  <div class="stat {{ 'on' if stage == st else '' }}">
+    <div class="label"><span>{{ st }}</span><span class="mono dim" title="locked, done or skipped">{{ v.done }}/{{ tot }}</span></div>
+    <div class="val">{{ v.pct }}<small>%</small></div>
+    {{ ui.strip(v.counts, tot) }}
+    <div class="counts">
+      {{ ui.countlinks(ep, st, v.counts) }}
+      {% if not open.n %}<span class="cnt quiet"><i></i>nothing waiting</span>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="section">
+  <div class="section-head toolbar">
+    <nav class="tabs" aria-label="Filter by status">
+      <a class="{{ '' if status else 'on' }}" href="/ep/{{ ep }}" title="Every shot in the episode">All <span class="n">{{ total_shots }}</span></a>
+      {% for s in ['needs_review', 'manual_required', 'queued', 'waiting', 'blocked', 'approved'] %}
+        {% set n = namespace(v=0) %}{% for st, v in stats.items() %}{% set n.v = n.v + v.counts.get(s, 0) %}{% endfor %}
+        <a class="f-{{ s }} {{ 'on' if status == s else '' }}" href="/ep/{{ ep }}?status={{ s }}" title="{{ ui.plain(s) }} · {{ n.v }} stage run{{ '' if n.v == 1 else 's' }} on shots{% if s == 'manual_required' %} (the Manual desk badge counts request files){% endif %}"><i></i>{{ ui.label(s) }}{% if s == 'manual_required' %} <span class="unit">stages</span>{% endif %} <span class="n {{ 'zero' if not n.v else '' }}">{{ n.v }}</span></a>
+      {% endfor %}
+    </nav>
+    <div class="seg" role="group" aria-label="Shot list layout">
+      <button type="button" class="seg-btn" data-view="cards" aria-pressed="true" title="Thumbnail cards">{{ ui.icon('grid') }} Cards</button>
+      <button type="button" class="seg-btn" data-view="table" aria-pressed="false" title="Dense table, one row per shot">{{ ui.icon('rows') }} Table</button>
+    </div>
+  </div>
+
+  {% if not shots %}
+  <div class="empty sm">
+    <div class="ico">{{ ui.icon('film') }}</div>
+    <h2>No shots {% if status %}marked {{ ui.label(status)|lower }}{% if stage %} on {{ stage }}{% endif %}{% else %}in this episode{% endif %}</h2>
+    <p>{% if status %}<a href="/ep/{{ ep }}">Clear the filter</a> to see the full shot list.{% else %}Run the breakdown to populate the shot list from the script.{% endif %}</p>
+  </div>
+  {% else %}
+  {% set want = request.query_params.get('view', '') %}
+  {% set default_view = want if want in ('cards', 'table') else ('table' if shots|length >= 30 else 'cards') %}
+  <div class="shotviews" data-view="{{ default_view }}" data-default="{{ default_view }}" {% if want in ('cards', 'table') %}data-forced="1"{% endif %}>
+
+    <div class="shotlist">
+      <div class="shotlist-head" aria-hidden="true">
+        <span class="label">Keyframe</span><span class="label">Shot</span><span class="label">Setup</span>
+        <div class="stagecols">{% for st in stages %}<span class="label">{{ st }}</span>{% endfor %}</div>
+      </div>
+      {% for s in shots %}
+      <article class="shot-row">
+        {{ ui.art(ep, s.id, alt=s.id ~ ' keyframe') }}
+        <div class="ident">
+          <div class="id"><a href="/ep/{{ ep }}/shot/{{ s.id }}">{{ s.id }}</a>
+            {% if s.lane == 'premium' %}<span class="tag gold" title="Premium lane · rendered by hand on a paid provider">{{ ui.icon('star') }} premium</span>{% endif %}
+            {% if not s.needs_video %}<span class="tag gray" title="Animated still · no video stage">still</span>{% endif %}
+          </div>
+          <p class="desc">{{ s.action }}</p>
+        </div>
+        <div class="facts">
+          <span class="k">Scene</span><span class="v" title="{{ s.scene }} · {{ s.location }}">{{ s.scene }} · {{ s.location }}</span>
+          <span class="k">Type</span><span class="v" title="{{ s.shot_type.replace('_', ' ') }} · {{ s.duration_s }}s">{{ s.shot_type.replace('_', ' ') }} · {{ s.duration_s }}s</span>
+          <span class="k">Cast</span><span class="v" title="{{ s.characters|join(', ') if s.characters else 'no cast' }}">{{ s.characters|join(', ') if s.characters else '—' }}</span>
+        </div>
+        <div class="stagecols">
+          {% for st in stages %}{% set v = s.stages.get(st) %}{% set stt = v.status if v else 'pending' %}
+            <span class="chip s-{{ stt }}" title="{{ ui.STAGE_TITLE[st] }} · {{ ui.plain(stt) }}{% if v and v.note %} — {{ v.note }}{% endif %}"><i></i><span class="sl">{{ ui.STAGE_SHORT[st] }}</span><span class="txt">{{ ui.label(stt) }}</span></span>
+          {% endfor %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+
+    <div class="scroller table-scroller shottable">
+    <div class="table-wrap sticky-first">
+      <table class="table dense">
+        <thead><tr>
+          <th>Shot</th><th>Scene</th><th>Type</th><th class="num">Dur</th><th>Cast</th>
+          {% for st in stages %}<th class="stage">{{ st }}</th>{% endfor %}
+        </tr></thead>
+        <tbody>
+        {% for s in shots %}
+          <tr>
+            <td><span class="row-id"><a class="id" href="/ep/{{ ep }}/shot/{{ s.id }}">{{ s.id }}</a>{% if s.lane == 'premium' %}<span class="tag gold xs" title="Premium lane">{{ ui.icon('star') }}</span>{% endif %}</span></td>
+            <td class="mono muted">{{ s.scene }}</td>
+            <td><span class="cell-stack"><span>{{ s.shot_type.replace('_', ' ') }}</span>{% if not s.needs_video %}<span class="sub">animated still</span>{% endif %}</span></td>
+            <td class="num mono">{{ s.duration_s }}s</td>
+            <td class="muted small">{{ s.characters|join(', ') if s.characters else '—' }}</td>
+            {% for st in stages %}{% set v = s.stages.get(st) %}
+              <td class="stage">{{ ui.chip(v.status if v else 'pending', (ui.STAGE_TITLE[st] ~ (' — ' ~ v.note if v and v.note else '')), 'sm') }}</td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+{% if cues %}
+<section class="section">
+  <div class="section-head"><h2>{{ ui.icon('waveform') }} Music cues</h2><span class="hint">One cue per scene, generated after picture lock.</span></div>
+  <div class="scroller table-scroller">
+  <div class="table-wrap sticky-first">
+    <table class="table cues">
+      <thead><tr><th>Cue</th><th class="hide-m">Scene</th><th>Direction</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for c in cues %}{% set v = c.stages.get('music') %}
+        <tr>
+          <td class="mono nowrap"><a href="/ep/{{ ep }}/shot/{{ c.id }}">{{ c.id }}</a></td>
+          <td class="mono muted hide-m">{{ c.scene }}</td>
+          <td class="muted">{{ c.action }}</td>
+          <td>{{ ui.chip(v.status if v else 'pending', v.note if v else '') }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
